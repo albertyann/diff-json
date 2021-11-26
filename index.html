@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>test</title>
+	<meta charset="UTF-8">
+	<script src="./vue.js"></script>
+</head>
+<body>
+<div id="app">
+	<div>
+		<h4>MPI比对工具</h4>
+	</div>
+	<div>
+		<b>Path:</b>
+		<span v-for="node in mp_index" v-on:click="selectPath(node)" style="cursor: pointer;">
+			<span>/</span>
+			{{node.name}}
+		</span>
+	</div>
+	<div style="border:1px solid #ccc;width:45%; height:400px;overflow: auto; display: inline-table; padding: 5px;">
+		<div v-for="item in left_ctrl_data">
+			<div v-on:click="selectData(item)" style="margin:2px; cursor:pointer;display: inline-table;">{{item.name}}</div>
+		</div>
+	</div>
+	<div style="border:1px solid #ccc;width:45%; height:400px;overflow: auto; display: inline-table; padding: 5px;">
+		<div v-for="item in right_ctrl_data">
+			<em style="border:1px solid #ddd; font-size: 0.8em; margin:2px; background-color: #ccc; padding:2px; border-radius: 3px;">&lt;&lt;</em>
+			<div v-on:click="selectData(item)" style="margin:2px; cursor:pointer;display:inline-table;">
+				{{item.name}}
+			</div>
+		</div>
+	</div>
+	<div>
+
+	</div>
+</div>
+	<script type="text/javascript">
+		var prod_mp_data
+		var sc_mp_data
+		fetch('./prod_mp_data.json')
+		  .then(response => response.json())
+		  .then(data => {
+		  	prod_mp_data = data.data
+		  	console.log("prod_mp_data", prod_mp_data)
+		})
+		fetch('./sc_mp_data.json')
+		  .then(response => response.json())
+		  .then(data => {
+		  	sc_mp_data = data.data
+		  	console.log("sc_mp_data", sc_mp_data)
+		})
+
+		var mp_test_data = [{'manageProductImplCode':'MPI20210625120222062564'}]
+
+		var mp_key_frame = {'MPI':"MP", "bizProducts":"产品类型列表", "bizProductFlows":"工作流列表","flowRuleAggr":"工作流规则集"}
+		var origin_data = ['Ability', 'ApplicationInit', 'Product', 'MP', 'MPI']
+		var mpi_topology = {
+			'code':'MPI',
+			'name':'MP实例',
+			'type': Object,
+			'depth':1,
+			'leaf':false,
+			'fields':['bizProducts'],
+			'children': [{
+				'code':'bizProducts',
+				'name':'产品类型列表',
+				'type': Array,
+				'depth':2,
+				'leaf':false,
+				'fields':[],
+				'showKey':{'key':'bizProductCode','name':'bizProductName'},
+				'children' : [{
+					'code':'-',
+					'name':'工作流列表',
+					'type': Object,
+					'depth':3,
+					'leaf':false,
+					'fields':['bizProductFlows'],
+					'children' : [{
+						'code':'-',
+						'name':'工作流规则集',
+						'type': Array,
+						'depth':4,
+						'leaf':false,
+						'fields':[],
+						'showKey':{'key':'flowCode','name':'flowName'},
+						'children' : [{
+							'code':'-、ls/,',
+							'name':'工作流规则集',
+							'type': Object,
+							'depth':5,
+							'leaf':false,
+							'fields':['flowRuleAggr'],
+							'children' : [{
+								'code':'-',
+								'name':'工作流规则集列表',
+								'type': Array,
+								'depth':6,
+								'leaf':false,
+								'fields':[],
+								'showKey':{'key':'ruleId','name':'configGroup'},
+								'children' : [{
+									'code':'-',
+									'name':'工作流规则集列表',
+									'type': Array,
+									'depth':     7,
+									'lea你f':true,
+									'fields':[],
+									'children':[]
+								}]
+							}]
+						}]
+					}]
+				}]
+			}]
+		}
+		var app = new Vue({
+		  el: '#app',
+		  data: {
+		  	origin_data  : origin_data,
+		  	selected_tag : '',
+		    path_data    : [],
+		    index_data   : [],
+		    index_depth  : 0,
+		    mp_index     : [],
+		    left_ctrl_data:[],
+		    right_ctrl_data:[],
+		    cursor       : {depth:0, selected:null}
+		  },
+		  created: function() {
+		  	this.selectedTag('MPI')
+		  },
+		  methods:{
+		  	selectedTag: function(e) {
+		  		this.selected_tag = e
+		  		this.left_ctrl_data.length = 0
+		  		this.mp_index.length = 0
+
+		  		if (e == 'MPI') {
+		  			for(var i in mp_test_data) {
+		  				this.left_ctrl_data.push({
+		  					code : mp_test_data[i].manageProductImplCode,
+		  					name : mp_test_data[i].manageProductImplCode,
+		  					index : -1
+		  				})
+		  				this.right_ctrl_data.push({
+		  					code : mp_test_data[i].manageProductImplCode,
+		  					name : mp_test_data[i].manageProductImplCode,
+		  					index : -1
+		  				})
+		  			}
+		  			// this.right_ctrl_data = this.left_ctrl_data
+		  			this.mp_index.push({
+		  				prev  : 'root',
+		  				depth : 1,
+		  				code  : '',
+		  				name  : '',
+		  				index : -1,
+		  				value : null,
+		  				next  : null
+		  			})
+		  			this.cursor = {depth:0, type:'MPI'}
+		  		}
+		  	},
+		  	selectPath: function(node) {
+		  		// 点击path中最后一个节点，不做变更
+		  		if (node.depth == this.cursor.depth) {
+		  			return
+		  		}
+
+		  		this.cursor.depth = node.depth - 1
+		  		this.cursor.code = node.code
+		  		this.cursor.name = node.name
+
+		  		this.mp_index = this.mp_index.slice(0, node.depth)
+		  		this.left_ctrl_data = this.left_ctrl_data.slice(0, node.depth)
+
+		  		this.selectData(node)
+		  	},
+		  	selectData: function(item) {
+		  		console.log(item)
+		  		// 叶子节点后不再响应点击事件
+		  		if (item.leaf) {
+		  			return
+		  		}
+
+		  		pre_data = this.mp_index[this.cursor.depth]
+		  		pre_data.selectd = item
+
+		  		this.mp_index[this.cursor.depth].child = item
+		  		this.cursor.depth++
+		  		this.cursor.selected = item
+
+		  		var cur_mp_index = {
+	  				prev  : pre_data,
+	  				depth : this.cursor.depth,
+	  				code  : item.code,
+	  				name  : item.name,
+	  				index : item.index,
+	  				value : null,
+	  				next  : null
+	  			}
+		  		this.mp_index.push(cur_mp_index)
+
+		  		left_obj = findCurData(this.cursor, this.mp_index, sc_mp_data)
+		  		right_obj = findCurData(this.cursor, this.mp_index, prod_mp_data)
+		  		
+		  		
+				this.left_ctrl_data.length = 0
+				this.right_ctrl_data.length = 0
+
+				console.log("cursor", this.cursor)
+				console.log("mp_index", this.mp_index)
+
+				var zz = mpi_topology
+				var topology = []
+				var x = 1
+
+				do {
+					if (x == this.cursor.depth) {
+						topology = zz.fields
+						break
+					}
+
+					zz = zz.children[0]
+					x++
+					
+					if (x == this.cursor.depth) {
+						topology = zz.fields
+						break
+					}
+				} while (x != this.cursor.depth)
+
+				
+				// 已经是叶子节点
+				if (zz.leaf) {
+					this.left_ctrl_data.push({name:JSON.stringify(left_obj), leaf:true})
+					return
+				}
+
+				this.left_ctrl_data = setCtrlData(left_obj, topology, zz)
+				this.right_ctrl_data = setCtrlData(right_obj, topology, zz)
+		  	}
+		  }
+		})
+
+		var setCtrlData = function(input_data, topology, zz) {
+			var ret_data = []
+
+			if (input_data !== undefined) {
+				if (Array.isArray(input_data)) {
+					for(var i in input_data) {
+						if (zz.showKey !== undefined) {
+							var x_code = zz.showKey.key
+							var x_name = zz.showKey.name
+							ret_data.push({
+			  					code  : input_data[i][x_code],
+			  					name  : input_data[i][x_name],
+			  					index : i,
+			  				})
+						}
+						
+					}
+				} else {
+					var keys = Object.keys(input_data)
+			  		for (var i = 0; i < keys.length; i++) {
+			  			var code = keys[i]
+			  			if (topology.indexOf(code) != -1) {
+				  			ret_data.push({
+			  					code : code,
+			  					name : findTopologyName(code),
+			  					index : i
+			  				})
+				  		}
+			  		}
+			  	}
+		  	}
+		  	return ret_data
+		}
+
+		var findTopologyName = function(code) {
+			if (mp_key_frame[code]) {
+				return mp_key_frame[code]
+			}
+			return code
+		}
+
+		var findCurData = function(cursor, mp_index, prod_mp_data) {
+			if (cursor.type == 'MPI') {
+				if (cursor.depth == 1) {
+					return prod_mp_data
+				} else {
+					var i = 2
+					var cur = mp_index[i]
+					var obj = prod_mp_data[cur.code]
+
+					while(cur.depth != cursor.depth) {
+						i++
+						cur = mp_index[i]
+						
+						if (Array.isArray(obj)) {
+							obj = obj[parseInt(cur.index)]
+						} else {
+							obj = obj[cur.code]
+						}
+					}
+					
+					return obj
+				}
+			}
+		}
+		
+	</script>
+</body>
+</html>
