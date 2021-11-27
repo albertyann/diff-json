@@ -47,7 +47,7 @@
 			height: 22px;
 		}
 		.opt_button {
-		    color: #EEEEEE;
+			color: #EEEEEE;
 			background-color: #3366CC;
 			width: 17px;
 			height: 18px;
@@ -99,16 +99,16 @@
 		var prod_mp_data
 		var sc_mp_data
 		fetch('./prod_mp_data.json')
-		  .then(response => response.json())
-		  .then(data => {
-		  	prod_mp_data = data.data
-		  	console.log("prod_mp_data", prod_mp_data)
+		.then(response => response.json())
+		.then(data => {
+			prod_mp_data = data.data
+			console.log("prod_mp_data", prod_mp_data)
 		})
 		fetch('./sc_mp_data.json')
-		  .then(response => response.json())
-		  .then(data => {
-		  	sc_mp_data = data.data
-		  	console.log("sc_mp_data", sc_mp_data)
+		.then(response => response.json())
+		.then(data => {
+			sc_mp_data = data.data
+			console.log("sc_mp_data", sc_mp_data)
 		})
 
 		function diff_lineMode(text1, text2) {
@@ -133,8 +133,22 @@
 			'type': Object,
 			'depth':1,
 			'leaf':false,
-			'fields':['bizProducts'],
+			'fields':['bizProducts', 'creatorCode', 'affectedInfo'],
 			'children': [{
+				'code':'creatorCode',
+				'name':'创建者',
+				'type': String,
+				'depth':2,
+				'leaf':true,
+			},
+			{
+				'code':'affectedInfo',
+				'name':'创建者',
+				'type': Array,
+				'depth':2,
+				'leaf':true,
+			},
+			{
 				'code':'bizProducts',
 				'name':'产品类型列表',
 				'type': Array,
@@ -161,6 +175,9 @@
 						formatLabel: function(item) {
 							return "["+item.businessSideCode+"] " + item.flowName
 						},
+						uniqCodeFun: function(item) {
+							return item['businessSideCode'] + "_" + item['flowCode']
+						},
 						'children' : [{
 							'code':'-',
 							'name':'工作流规则集',
@@ -176,11 +193,15 @@
 								'leaf':false,
 								'fields':[],
 								'showKey':{'key':'ruleId','name':'configGroup'},
+								formatLabel: null,
+								uniqCodeFun: function(item) {
+									return item['configGroup']
+								},
 								'children' : [{
 									'code':'-',
 									'name':'工作流规则集列表',
 									'type': Array,
-									'depth':     7,
+									'depth':7,
 									'lea你f':true,
 									'fields':[],
 									'children':[]
@@ -192,253 +213,253 @@
 			}]
 		}
 		var app = new Vue({
-		  el: '#app',
-		  data: {
-		  	origin_data  : origin_data,
-		  	selected_tag : '',
-		    path_data    : [],
-		    index_data   : [],
-		    index_depth  : 0,
-		    mp_index     : [],
-		    left_ctrl_data:[],
-		    right_ctrl_data:[],
-		    cursor       : {depth:0, selected:null}
-		  },
-		  created: function() {
-		  	this.selectedTag('MPI')
-		  },
-		  methods:{
-		  	selectedTag: function(e) {
-		  		this.selected_tag = e
-		  		this.left_ctrl_data.length = 0
-		  		this.mp_index.length = 0
+			el: '#app',
+			data: {
+				origin_data: origin_data,
+				selected_tag : '',
+				path_data	: [],
+				index_data : [],
+				index_depth: 0,
+				mp_index	 : [],
+				left_ctrl_data:[],
+				right_ctrl_data:[],
+				cursor	 : {depth:0, selected:null}
+			},
+			created: function() {
+				this.selectedTag('MPI')
+			},
+			methods:{
+				selectedTag: function(e) {
+					this.selected_tag = e
+					this.left_ctrl_data.length = 0
+					this.mp_index.length = 0
 
-		  		if (e == 'MPI') {
-		  			for(var i in mp_test_data) {
-		  				this.left_ctrl_data.push({
-		  					code : mp_test_data[i].manageProductImplCode,
-		  					name : mp_test_data[i].manageProductImplCode,
-		  					index : -1
-		  				})
-		  				this.right_ctrl_data.push({
-		  					code : mp_test_data[i].manageProductImplCode,
-		  					name : mp_test_data[i].manageProductImplCode,
-		  					index : -1
-		  				})
-		  			}
-		  			// this.right_ctrl_data = this.left_ctrl_data
-		  			this.mp_index.push({
-		  				prev  : 'root',
-		  				depth : 1,
-		  				code  : '',
-		  				name  : '',
-		  				index : -1,
-		  				value : null,
-		  				next  : null
-		  			})
-		  			this.cursor = {depth:0, type:'MPI'}
-		  		}
-		  	},
-		  	selectPath: function(node) {
-		  		// 点击path中最后一个节点，不做变更
-		  		if (node.depth == this.cursor.depth) {
-		  			return
-		  		}
+					if (e == 'MPI') {
+						for(var i in mp_test_data) {
+							this.left_ctrl_data.push({
+								code : mp_test_data[i].manageProductImplCode,
+								name : mp_test_data[i].manageProductImplCode,
+								index : -1
+							})
+							this.right_ctrl_data.push({
+								code : mp_test_data[i].manageProductImplCode,
+								name : mp_test_data[i].manageProductImplCode,
+								index : -1
+							})
+						}
 
-		  		this.cursor.depth = node.depth - 1
-		  		this.cursor.code = node.code
-		  		this.cursor.name = node.name
-
-		  		this.mp_index = this.mp_index.slice(0, node.depth)
-		  		this.left_ctrl_data = this.left_ctrl_data.slice(0, node.depth)
-
-		  		this.selectData(node)
-		  	},
-		  	selectData: function(item) {
-		  		console.log(item)
-		  		// 叶子节点后不再响应点击事件
-		  		if (item.leaf) {
-		  			return
-		  		}
-
-		  		pre_data = this.mp_index[this.cursor.depth]
-		  		pre_data.selectd = item
-
-		  		this.mp_index[this.cursor.depth].child = item
-		  		this.cursor.depth++
-		  		this.cursor.selected = item
-
-		  		var cur_mp_index = {
-	  				prev  : pre_data,
-	  				depth : this.cursor.depth,
-	  				code  : item.code,
-	  				name  : item.name,
-	  				index : item.index,
-	  				value : null,
-	  				next  : null
-	  			}
-		  		this.mp_index.push(cur_mp_index)
-
-		  		left_obj = findCurData(this.cursor, this.mp_index, sc_mp_data)
-		  		right_obj = findCurData(this.cursor, this.mp_index, prod_mp_data)
-		  		
-		  		
-				this.left_ctrl_data.length = 0
-				this.right_ctrl_data.length = 0
-
-				console.log("cursor", this.cursor)
-				console.log("mp_index", this.mp_index)
-
-				var zz = mpi_topology
-				var topology = []
-				var x = 1
-
-				do {
-					if (x == this.cursor.depth) {
-						topology = zz.fields
-						break
+						this.mp_index.push({
+							prev: 'root',
+							depth : 1,
+							code: '',
+							name: '',
+							index : -1,
+							value : null,
+							next: null
+						})
+						this.cursor = {depth:0, type:'MPI'}
+					}
+				},
+				selectPath: function(node) {
+					// 点击path中最后一个节点，不做变更
+					if (node.depth == this.cursor.depth) {
+						return
 					}
 
-					zz = zz.children[0]
-					x++
+					this.cursor.depth = node.depth - 1
+					this.cursor.code= node.code
+					this.cursor.name= node.name
+
+					this.mp_index = this.mp_index.slice(0, node.depth)
+					this.left_ctrl_data = this.left_ctrl_data.slice(0, node.depth)
+
+					this.selectData(node)
+				},
+				selectData: function(item) {
+					// 叶子节点后不再响应点击事件
+					if (item.leaf) {
+						return
+					}
+
+					pre_data = this.mp_index[this.cursor.depth]
+					pre_data.selectd = item
+
+					this.mp_index[this.cursor.depth].child = item
+					this.cursor.depth++
+					this.cursor.selected = item
+
+					var cur_mp_index = {
+						prev: pre_data,
+						depth : this.cursor.depth,
+						code: item.code,
+						name: item.name,
+						index : item.index,
+						value : null,
+						next: null
+					}
+					this.mp_index.push(cur_mp_index)
+
+					left_obj = findCurData(this.cursor, this.mp_index, sc_mp_data)
+					right_obj = findCurData(this.cursor, this.mp_index, prod_mp_data)
 					
-					if (x == this.cursor.depth) {
-						topology = zz.fields
-						break
-					}
-				} while (x != this.cursor.depth)
+					
+					this.left_ctrl_data.length= 0
+					this.right_ctrl_data.length = 0
 
-				
-				// 已经是叶子节点
-				if (zz.leaf) {
-					this.left_ctrl_data.push({name:JSON.stringify(left_obj), leaf:true})
-					return
-				}
+					var zz = mpi_topology
+					var topology = []
+					var x = 1
 
-				var left_ctrl_data = setCtrlData(left_obj, topology, zz)
-				var right_ctrl_data = setCtrlData(right_obj, topology, zz)
+					do {
+						if (x == this.cursor.depth) {
+							topology = zz.fields
+							break
+						}
 
-				console.log("left_ctrl_data", left_ctrl_data)
-				console.log("right_ctrl_data", right_ctrl_data)
+						zz = zz.children[0]
+						x++
+						
+						if (x == this.cursor.depth) {
+							topology = zz.fields
+							break
+						}
+					} while (x != this.cursor.depth)
 
-
-				var diff = diff_lineMode(
-					left_ctrl_data.map(x => x.uniqCode).join("\n"),
-				 	right_ctrl_data.map(x => x.uniqCode).join("\n"))
-
-				var new_left_ctrl_data = []
-				diff.forEach(x => {
-					if (x[0] === 0) {
-						console.log(x[0], x[1])
-						x[1].split('\n').forEach(n => {
-							if (n != "")
-								new_left_ctrl_data.push(findNewCtrlData(0, n, left_ctrl_data, right_ctrl_data))
+					
+					// 已经是叶子节点
+					if (zz.leaf) {
+						var ret = formatLeafValue(zz.type, left_obj, right_obj)
+						console.log("ret", ret)
+						this.left_ctrl_data.push({
+							name : ret[0],
+							leaf : true
 						})
-					} else if (x[0] === 1) {
-						x[1].split('\n').forEach(n => {
-							if (n != "")
-								new_left_ctrl_data.push(findNewCtrlData(1, n, left_ctrl_data, right_ctrl_data))
+						this.right_ctrl_data.push({
+							name : ret[1],
+							leaf : true
 						})
-					} else if (x[0] === -1) {
-						x[1].split('\n').forEach(n => {
-							if (n != "")
-								new_left_ctrl_data.push(findNewCtrlData(-1, n, left_ctrl_data, right_ctrl_data))
-						})
+						return
 					}
-				})
-				console.log("new_left_ctrl_data", new_left_ctrl_data)
-				if (this.cursor.depth == 4) {
-					this.left_ctrl_data = new_left_ctrl_data
-					right_ctrl_data = new_left_ctrl_data
-				} else {
-					this.left_ctrl_data = left_ctrl_data
-				}
-				this.right_ctrl_data = right_ctrl_data
-		  	}
-		  }
-		})
 
-		var findNewCtrlData = function(opt, uniqCode, left_ctrl_data, right_ctrl_data) {
-			if (opt === -1 || opt === 0) {
-				for (var k in left_ctrl_data) {
-					var a = left_ctrl_data[k]
-					if (a.uniqCode == uniqCode) {
-						a.opt = opt
-						return a
+					var left_ctrl_data = setCtrlData(left_obj, topology, zz)
+					var right_ctrl_data = setCtrlData(right_obj, topology, zz)
+
+					if (this.cursor.depth == 4 || this.cursor.depth == 6) {
+						var text1 = ""
+						var text2 = ""
+						left_ctrl_data.forEach(x => text1 += x.uniqCode + "\n")
+						right_ctrl_data.forEach(x => text2 += x.uniqCode + "\n")
+
+						var diff = diff_lineMode(text1, text2)
+
+						var new_left_ctrl_data = []
+						diff.forEach(x => {
+							var ctrl_data = x[0] === 1 ? right_ctrl_data : left_ctrl_data
+							findNewCtrlData(x[0], x[1], ctrl_data).forEach(m => {
+								new_left_ctrl_data.push(m)
+							})
+						})
+
+						left_ctrl_data  = new_left_ctrl_data
+						right_ctrl_data = new_left_ctrl_data
 					}
-				}
-			} else {
-				for (var k in right_ctrl_data) {
-					var a = right_ctrl_data[k]
-					if (a.uniqCode == uniqCode) {
-						a.opt = opt
-						return a
-					}
+					this.left_ctrl_data  = left_ctrl_data
+					this.right_ctrl_data = right_ctrl_data
 				}
 			}
+		})
+
+		var formatLeafValue = function(type, left_obj, right_obj) {
+			var retValue = []
+
+			var data = [left_obj, right_obj]
+			data.forEach(x => {
+				var context = ""
+				if (type == Object) {
+					context = JSON.stringify(left_obj)
+				} else if (type == String || type == Number) {
+					context = left_obj
+				}
+				retValue.push(context)
+			})
+			
+			return retValue
+		}
+
+		var splitLine = function(text) {
+			var _codes = []
+			text.split('\n').forEach(x => {
+				if (x.length > 0) {
+					_codes.push(x)
+				}
+			})
+			return _codes
+		}
+
+		var findNewCtrlData = function(opt, text, ctrl_data) {
+			var _data = []
+			splitLine(text).forEach(uniqCode => {
+				ctrl_data.forEach(x => {
+					if (x.uniqCode == uniqCode) {
+						x.opt = opt
+						_data.push(x)
+					}
+				})
+			})
+			return _data
 		}
 
 		var sortFun = function(a, b) {
 			var nameA = a.uniqCode.toUpperCase()
 			var nameB = b.uniqCode.toUpperCase()
 			if (nameA < nameB) {
-			  return -1
+				return -1
 			}
 			if (nameA > nameB) {
-			  return 1
+				return 1
 			}
 
 			return 0
 		}
 
-		var setCtrlData = function(input_data, topology, zz) {
+		var setCtrlData = function(input_data, topology, meta) {
 			var ret_data = []
 
 			if (input_data !== undefined) {
 				if (Array.isArray(input_data)) {
 					for(var i in input_data) {
-						if (zz.showKey !== undefined) {
-							var x_code = zz.showKey.key
-							var x_name = zz.showKey.name
+						var _item = input_data[i]
+						if (meta.showKey !== undefined) {
+							var x_code = meta.showKey.key
+							var x_name = meta.showKey.name
 
-							if (zz.formatLabel) {
-								var x_code = zz.showKey.key
-								var formatLabel = zz.formatLabel
-								ret_data.push({
-									uniqCode: input_data[i]['businessSideCode'] +"_"+input_data[i][x_code],
-				  					code  : input_data[i][x_code],
-				  					name  : formatLabel(input_data[i]),
-				  					index : i,
-				  				})
-							} else {
-								ret_data.push({
-				  					code  : input_data[i][x_code],
-				  					name  : input_data[i][x_name],
-				  					index : i,
-				  				})
-							}
+							ret_data.push({
+								uniqCode : meta.uniqCodeFun ? meta.uniqCodeFun(_item) : _item[x_code],
+								code     : _item[x_code],
+								name     : meta.formatLabel ? meta.formatLabel(_item) : _item[x_name],
+								index    : i,
+							})
 						}
-						
 					}
 				} else {
 					var keys = Object.keys(input_data)
-			  		for (var i = 0; i < keys.length; i++) {
-			  			var code = keys[i]
-			  			if (topology.indexOf(code) != -1) {
-				  			ret_data.push({
-			  					code : code,
-			  					name : findTopologyName(code),
-			  					index : i
-			  				})
-				  		}
-			  		}
-			  	}
-		  	}
-		  	// 数据对齐
-			if (zz.align) {
+					for (var i = 0; i < keys.length; i++) {
+						var code = keys[i]
+						if (topology.indexOf(code) != -1) {
+							ret_data.push({
+								code : code,
+								name : findTopologyName(code),
+								index : i
+							})
+						}
+					}
+				}
+			}
+			// 数据对齐
+			if (meta.align) {
 				ret_data.sort(sortFun)
 			}
-		  	return ret_data
+			return ret_data
 		}
 
 		var findTopologyName = function(code) {
@@ -472,7 +493,6 @@
 				}
 			}
 		}
-		
 	</script>
 </body>
 </html>
