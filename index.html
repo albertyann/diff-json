@@ -4,6 +4,59 @@
 	<title>test</title>
 	<meta charset="UTF-8">
 	<script src="./vue.js"></script>
+	<script src="./diff_match_patch.js"></script>
+	<style type="text/css">
+		.bbox {
+			border:1px solid #ccc;
+			width:45%;
+			height:400px;
+			overflow: auto;
+			display: inline-table;
+			padding: 5px;
+		}
+		.opt_lable {
+			font-size: 0.9em;
+			display: inline-table;
+			margin:2px;
+			width: 1.2em;
+			text-align: center;
+		}
+		.txt_line {
+			margin:2px 3px;
+			padding: 2px 3px;
+			cursor:pointer;
+			display: inline-table;
+			height: 24px;
+		}
+		.opt_add_bg {
+			color: #CCCCCC;
+			border: 1px dashed #CCCC99;
+			background-color: #CCFFFF;
+			height: 22px;
+		}
+		.opt_rm_bg {
+			color: #333333;
+			background-color: #FF9999;
+			border: 1px solid #FF6666;
+			height: 22px;
+		}
+		.opt_rm_r_bg {
+			color: #999999;
+			border: 1px dashed #FF6666;
+			background-color: #FF9999;
+			height: 22px;
+		}
+		.opt_button {
+		    color: #EEEEEE;
+			background-color: #3366CC;
+			width: 17px;
+			height: 18px;
+			padding: 1px 2px;
+			font-size: 0.6em;
+			border-radius: 4px/4px;
+			cursor: pointer;
+		}
+	</style>
 </head>
 <body>
 <div id="app">
@@ -17,15 +70,23 @@
 			{{node.name}}
 		</span>
 	</div>
-	<div style="border:1px solid #ccc;width:45%; height:400px;overflow: auto; display: inline-table; padding: 5px;">
+	<div class="bbox">
 		<div v-for="item in left_ctrl_data">
-			<div v-on:click="selectData(item)" style="margin:2px; cursor:pointer;display: inline-table;">{{item.name}}</div>
+			<em class="opt_lable" v-if="item.opt == 1">+</em>
+			<em class="opt_lable" v-if="item.opt == -1">*</em>
+			<em class="opt_lable" v-if="item.opt == 0"> </em>
+			<div v-on:click="selectData(item)"
+				v-bind:class="{opt_add_bg:item.opt==1, opt_rm_bg:item.opt==-1}"
+				class="txt_line">{{item.name}}</div>
 		</div>
 	</div>
-	<div style="border:1px solid #ccc;width:45%; height:400px;overflow: auto; display: inline-table; padding: 5px;">
+	<div class="bbox">
 		<div v-for="item in right_ctrl_data">
-			<em style="border:1px solid #ddd; font-size: 0.8em; margin:2px; background-color: #ccc; padding:2px; border-radius: 3px;">&lt;&lt;</em>
-			<div v-on:click="selectData(item)" style="margin:2px; cursor:pointer;display:inline-table;">
+			<em class="opt_lable opt_button" v-if="item.opt==1">&lt;&lt;</em>
+			<em class="opt_lable" v-else> </em>
+			<div v-on:click="selectData(item)"
+				v-bind:class="{opt_rm_r_bg:item.opt==-1}"
+				class="txt_line">
 				{{item.name}}
 			</div>
 		</div>
@@ -49,6 +110,18 @@
 		  	sc_mp_data = data.data
 		  	console.log("sc_mp_data", sc_mp_data)
 		})
+
+		function diff_lineMode(text1, text2) {
+			var dmp = new diff_match_patch()
+			var a = dmp.diff_linesToChars_(text1, text2)
+			var lineText1 = a.chars1
+			var lineText2 = a.chars2
+			var lineArray = a.lineArray
+			var diffs = dmp.diff_main(lineText1, lineText2, false)
+			dmp.diff_charsToLines_(diffs, lineArray)
+		
+			return diffs;
+		}
 
 		var mp_test_data = [{'manageProductImplCode':'MPI20210625120222062564'}]
 
@@ -84,8 +157,12 @@
 						'leaf':false,
 						'fields':[],
 						'showKey':{'key':'flowCode','name':'flowName'},
+						'align':true,
+						formatLabel: function(item) {
+							return "["+item.businessSideCode+"] " + item.flowName
+						},
 						'children' : [{
-							'code':'-、ls/,',
+							'code':'-',
 							'name':'工作流规则集',
 							'type': Object,
 							'depth':5,
@@ -238,11 +315,81 @@
 					return
 				}
 
-				this.left_ctrl_data = setCtrlData(left_obj, topology, zz)
-				this.right_ctrl_data = setCtrlData(right_obj, topology, zz)
+				var left_ctrl_data = setCtrlData(left_obj, topology, zz)
+				var right_ctrl_data = setCtrlData(right_obj, topology, zz)
+
+				console.log("left_ctrl_data", left_ctrl_data)
+				console.log("right_ctrl_data", right_ctrl_data)
+
+
+				var diff = diff_lineMode(
+					left_ctrl_data.map(x => x.uniqCode).join("\n"),
+				 	right_ctrl_data.map(x => x.uniqCode).join("\n"))
+
+				var new_left_ctrl_data = []
+				diff.forEach(x => {
+					if (x[0] === 0) {
+						console.log(x[0], x[1])
+						x[1].split('\n').forEach(n => {
+							if (n != "")
+								new_left_ctrl_data.push(findNewCtrlData(0, n, left_ctrl_data, right_ctrl_data))
+						})
+					} else if (x[0] === 1) {
+						x[1].split('\n').forEach(n => {
+							if (n != "")
+								new_left_ctrl_data.push(findNewCtrlData(1, n, left_ctrl_data, right_ctrl_data))
+						})
+					} else if (x[0] === -1) {
+						x[1].split('\n').forEach(n => {
+							if (n != "")
+								new_left_ctrl_data.push(findNewCtrlData(-1, n, left_ctrl_data, right_ctrl_data))
+						})
+					}
+				})
+				console.log("new_left_ctrl_data", new_left_ctrl_data)
+				if (this.cursor.depth == 4) {
+					this.left_ctrl_data = new_left_ctrl_data
+					right_ctrl_data = new_left_ctrl_data
+				} else {
+					this.left_ctrl_data = left_ctrl_data
+				}
+				this.right_ctrl_data = right_ctrl_data
 		  	}
 		  }
 		})
+
+		var findNewCtrlData = function(opt, uniqCode, left_ctrl_data, right_ctrl_data) {
+			if (opt === -1 || opt === 0) {
+				for (var k in left_ctrl_data) {
+					var a = left_ctrl_data[k]
+					if (a.uniqCode == uniqCode) {
+						a.opt = opt
+						return a
+					}
+				}
+			} else {
+				for (var k in right_ctrl_data) {
+					var a = right_ctrl_data[k]
+					if (a.uniqCode == uniqCode) {
+						a.opt = opt
+						return a
+					}
+				}
+			}
+		}
+
+		var sortFun = function(a, b) {
+			var nameA = a.uniqCode.toUpperCase()
+			var nameB = b.uniqCode.toUpperCase()
+			if (nameA < nameB) {
+			  return -1
+			}
+			if (nameA > nameB) {
+			  return 1
+			}
+
+			return 0
+		}
 
 		var setCtrlData = function(input_data, topology, zz) {
 			var ret_data = []
@@ -253,11 +400,23 @@
 						if (zz.showKey !== undefined) {
 							var x_code = zz.showKey.key
 							var x_name = zz.showKey.name
-							ret_data.push({
-			  					code  : input_data[i][x_code],
-			  					name  : input_data[i][x_name],
-			  					index : i,
-			  				})
+
+							if (zz.formatLabel) {
+								var x_code = zz.showKey.key
+								var formatLabel = zz.formatLabel
+								ret_data.push({
+									uniqCode: input_data[i]['businessSideCode'] +"_"+input_data[i][x_code],
+				  					code  : input_data[i][x_code],
+				  					name  : formatLabel(input_data[i]),
+				  					index : i,
+				  				})
+							} else {
+								ret_data.push({
+				  					code  : input_data[i][x_code],
+				  					name  : input_data[i][x_name],
+				  					index : i,
+				  				})
+							}
 						}
 						
 					}
@@ -275,6 +434,10 @@
 			  		}
 			  	}
 		  	}
+		  	// 数据对齐
+			if (zz.align) {
+				ret_data.sort(sortFun)
+			}
 		  	return ret_data
 		}
 
