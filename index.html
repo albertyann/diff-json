@@ -13,6 +13,7 @@
 			overflow: auto;
 			display: inline-table;
 			padding: 5px;
+			float: left;
 		}
 		.opt_lable {
 			font-size: 0.9em;
@@ -133,22 +134,22 @@
 			'type': Object,
 			'depth':1,
 			'leaf':false,
-			'fields':['bizProducts', 'creatorCode', 'affectedInfo'],
+			'fields':['bizProducts'],
 			'children': [{
-				'code':'creatorCode',
-				'name':'创建者',
-				'type': String,
-				'depth':2,
-				'leaf':true,
-			},
-			{
-				'code':'affectedInfo',
-				'name':'创建者',
-				'type': Array,
-				'depth':2,
-				'leaf':true,
-			},
-			{
+			// 	'code':'creatorCode',
+			// 	'name':'创建者',
+			// 	'type': String,
+			// 	'depth':2,
+			// 	'leaf':true,
+			// },
+			// {
+			// 	'code':'affectedInfo',
+			// 	'name':'创建者',
+			// 	'type': Array,
+			// 	'depth':2,
+			// 	'leaf':true,
+			// },
+			// {
 				'code':'bizProducts',
 				'name':'产品类型列表',
 				'type': Array,
@@ -163,6 +164,7 @@
 					'depth':3,
 					'leaf':false,
 					'fields':['bizProductFlows'],
+					// 'showKey':{'key':'bizProductCode','name':'bizProductName'},
 					'children' : [{
 						'code':'-',
 						'name':'工作流规则集',
@@ -249,15 +251,23 @@
 						}
 
 						this.mp_index.push({
-							prev: 'root',
 							depth : 1,
 							code: '',
 							name: '',
 							index : -1,
-							value : null,
-							next: null
+							l_value: true,
+							r_value: true,
+							type : 'object' // object,array,number,string
 						})
-						this.cursor = {depth:0, type:'MPI'}
+						this.cursor = {depth:0, type:'MPI', l_value: {
+								code : mp_test_data[i].manageProductImplCode,
+								name : mp_test_data[i].manageProductImplCode,
+								index : -1
+							}, r_value:{
+								code : mp_test_data[i].manageProductImplCode,
+								name : mp_test_data[i].manageProductImplCode,
+								index : -1
+							}}
 					}
 				},
 				selectPath: function(node) {
@@ -289,21 +299,24 @@
 					this.cursor.selected = item
 
 					var cur_mp_index = {
-						prev: pre_data,
 						depth : this.cursor.depth,
-						code: item.code,
-						name: item.name,
+						code  : item.code,
+						name  : item.name,
 						index : item.index,
 						value : null,
-						next: null
+						l_value: this.cursor.l_value[item.code] ? true : false,
+						r_value: this.cursor.r_value[item.code] ? true : false,
 					}
 					this.mp_index.push(cur_mp_index)
 
-					left_obj = findCurData(this.cursor, this.mp_index, sc_mp_data)
-					right_obj = findCurData(this.cursor, this.mp_index, prod_mp_data)
+					left_obj  = findCurData('l', this.cursor, this.mp_index, item, sc_mp_data)
+					right_obj = findCurData('r', this.cursor, this.mp_index, item, prod_mp_data)
+					console.log("this.cursor", this.cursor)
+
+					cur_mp_index.l_value = !!left_obj
+					cur_mp_index.r_value = !!right_obj
 					
-					
-					this.left_ctrl_data.length= 0
+					this.left_ctrl_data.length  = 0
 					this.right_ctrl_data.length = 0
 
 					var zz = mpi_topology
@@ -325,7 +338,7 @@
 						}
 					} while (x != this.cursor.depth)
 
-					
+					console.log("zz", zz)
 					// 已经是叶子节点
 					if (zz.leaf) {
 						var ret = formatLeafValue(zz.type, left_obj, right_obj)
@@ -365,6 +378,9 @@
 					}
 					this.left_ctrl_data  = left_ctrl_data
 					this.right_ctrl_data = right_ctrl_data
+
+					this.cursor.l_value = left_ctrl_data
+					this.cursor.r_value = right_ctrl_data
 				}
 			}
 		})
@@ -424,6 +440,9 @@
 
 		var setCtrlData = function(input_data, topology, meta) {
 			var ret_data = []
+			if (input_data == null) {
+				return []
+			}
 
 			if (input_data !== undefined) {
 				if (Array.isArray(input_data)) {
@@ -455,7 +474,7 @@
 					}
 				}
 			}
-			// 数据对齐
+			// 数据排序
 			if (meta.align) {
 				ret_data.sort(sortFun)
 			}
@@ -469,14 +488,27 @@
 			return code
 		}
 
-		var findCurData = function(cursor, mp_index, prod_mp_data) {
+		var findTopologyCursor = function(cursor) {
+			// var tt;
+			// var d = 0;
+			// while(d <= cursor.depth) {
+			// 	if ()
+			// 	tt = mpi_topology.children
+			// }
+			return code
+		}
+
+		var findCurData = function(from, cursor, mp_index, item, mp_data) {
 			if (cursor.type == 'MPI') {
 				if (cursor.depth == 1) {
-					return prod_mp_data
+					return mp_data
 				} else {
 					var i = 2
 					var cur = mp_index[i]
-					var obj = prod_mp_data[cur.code]
+					var obj = mp_data[cur.code]
+
+					console.log("mp_index", mp_index)
+					console.log("item", item)
 
 					while(cur.depth != cursor.depth) {
 						i++
@@ -487,8 +519,18 @@
 						} else {
 							obj = obj[cur.code]
 						}
+
+						if ('l' == from && !cur.l_value) {
+							break
+						}
+						if ('r' == from && !cur.r_value) {
+							break
+						}
 					}
-					
+					console.log("obj", obj)
+					if (cursor.depth == 5 && obj.flowCode !== item.code) {
+						return null
+					}
 					return obj
 				}
 			}
