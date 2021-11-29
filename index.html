@@ -83,7 +83,7 @@
 	</div>
 	<div class="bbox">
 		<div v-for="item in right_ctrl_data">
-			<em class="opt_lable opt_button" v-if="item.opt==1">&lt;&lt;</em>
+			<em class="opt_lable opt_button" v-if="item.opt==1" v-on:click="moveLeft(item)">&lt;&lt;</em>
 			<em class="opt_lable" v-else> </em>
 			<div v-on:click="selectData(item)"
 				v-bind:class="{opt_rm_r_bg:item.opt==-1}"
@@ -231,6 +231,46 @@
 				this.selectedTag('MPI')
 			},
 			methods:{
+				moveLeft: function(item) {
+					console.log("this.cursor", this.cursor)
+					var right_obj = findCurData('r', this.cursor, this.mp_index, item, prod_mp_data)
+
+					var cur_data = null
+					for(var i in right_obj) {
+						var obj = right_obj[i]
+						if (obj.flowCode == item.code) {
+							cur_data = obj
+						}
+					}
+
+					var left_obj = findCurData('l', this.cursor, this.mp_index, item, sc_mp_data)
+					left_obj.push(cur_data)
+
+					var zz = mpi_topology
+					var topology = []
+					var x = 1
+
+					do {
+						if (x == this.cursor.depth) {
+							topology = zz.fields
+							break
+						}
+
+						zz = zz.children[0]
+						x++
+						
+						if (x == this.cursor.depth) {
+							topology = zz.fields
+							break
+						}
+					} while (x != this.cursor.depth)
+
+					var left_ctrl_data = setCtrlData(left_obj, topology, zz)
+					this.left_ctrl_data = left_ctrl_data
+					this.cursor.l_value = left_ctrl_data
+
+					console.log("cur_data", cur_data)
+				},
 				selectedTag: function(e) {
 					this.selected_tag = e
 					this.left_ctrl_data.length = 0
@@ -311,7 +351,6 @@
 
 					left_obj  = findCurData('l', this.cursor, this.mp_index, item, sc_mp_data)
 					right_obj = findCurData('r', this.cursor, this.mp_index, item, prod_mp_data)
-					console.log("this.cursor", this.cursor)
 
 					cur_mp_index.l_value = !!left_obj
 					cur_mp_index.r_value = !!right_obj
@@ -507,9 +546,6 @@
 					var cur = mp_index[i]
 					var obj = mp_data[cur.code]
 
-					console.log("mp_index", mp_index)
-					console.log("item", item)
-
 					while(cur.depth != cursor.depth) {
 						i++
 						cur = mp_index[i]
@@ -527,7 +563,6 @@
 							break
 						}
 					}
-					console.log("obj", obj)
 					if (cursor.depth == 5 && obj.flowCode !== item.code) {
 						return null
 					}
