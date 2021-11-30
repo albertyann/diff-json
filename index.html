@@ -142,14 +142,58 @@
 				'leaf':false,
 				'fields':[],
 				'showKey':{'key':'bizProductCode','name':'bizProductName'},
+				sortCompare: function(a, b) {
+					var aKey = a.bizProductCode.toUpperCase()
+					var bKey = b.bizProductCode.toUpperCase()
+					if (aKey < bKey) {
+						return -1
+					}
+					if (aKey > bKey) {
+						return 1
+					}
+
+					return 0
+				},
 				'children' : [{
-					'code':'-',
+					'code':'bizProductFlows',
 					'name':'工作流列表',
 					'type': 'object',
 					'depth':2,
 					'leaf':false,
 					'fields':['bizProductFlows'],
 					// 'showKey':{'key':'bizProductCode','name':'bizProductName'},
+					compare: function(left_data, right_data) {
+						if (left_data == undefined || right_data == undefined) {
+							return false
+						}
+						if (left_data.length !== right_data.length) {
+							return false
+						}
+
+						var diff = true
+						for (var i in left_data) {
+							var a = left_data[i]
+							var b
+							for (var j in right_data) {
+								var x = right_data[j]
+								if (a.bizProductCode == x.bizProductCode) {
+									b = x
+								}
+							}
+
+							if (b == undefined) {
+								diff = false
+							}
+							if (a.bizProductName !== b.bizProductName) {
+								diff = false
+							}
+
+							if (!diff) {
+								break
+							}
+						}
+						return diff
+					},
 					'children' : [{
 						'code':'-',
 						'name':'工作流规则集',
@@ -164,6 +208,15 @@
 						},
 						uniqCodeFun: function(item) {
 							return item['businessSideCode'] + "_" + item['flowCode']
+						},
+						diffFun: function(a, b) {
+							if (a.businessSideCode !== b.businessSideCode) {
+								return false
+							}
+							if (a.bizProductName !== b.bizProductName) {
+								return false
+							}
+							return true
 						},
 						'children' : [{
 							'code':'-',
@@ -199,6 +252,285 @@
 				}]
 			}]
 		}
+
+
+		var deepDiff = function(cursor, mp_meta, sc_mp_data, prod_mp_data) {
+			var path  = cursor.t_path
+			var l_obj = findData(cursor.l_path, sc_mp_data)
+			var r_obj = findData(cursor.r_path, prod_mp_data)
+
+			var meta  = findMetaData(cursor.t_path, mp_meta)
+
+			var diffs = []
+			if (meta.compare) {
+				var diff = meta.compare(l_obj, r_obj)
+			} else {
+				for (var k in sc_mp_data) {
+					var l_o = sc_mp_data[k]
+					var r_o = prod_mp_data[k]
+					if (r_o == undefined) {
+						diffs.push({'path': pathAdd(path, k), 'opt':1})
+					}
+					if (typeof(l_o) == 'string' || typeof(l_o) == 'number') {
+						if (l_o === r_o) {
+							diffs.push({'path': pathAdd(path, k), 'opt':0})
+						} else {
+							diffs.push({'path': pathAdd(path, k), 'opt':2})
+						}
+					}
+
+					if (typeof(l_o) == 'object') {
+						if (Array.isArray(l_o)) {
+							l_o.sort(meta.sortCompare)
+							r_o.sort(meta.sortCompare)
+						}
+
+						var cc = {
+							t_path : pathAdd(path, k),
+							l_path : pathAdd(path, k),
+							r_path : pathAdd(path, k),
+							depth : cursor.depth + 1
+						}
+						var _diffs = deepObjectDiff(cc, mp_meta, l_o, r_o)
+						_diffs.forEach(d => {
+							diffs.push(d)
+						})
+					}
+				}
+			}
+			return diffs
+		}
+
+		var deepObjectDiff = function(paths, mp_meta, left_data, right_data) {
+			if (paths.depth >= 5) {
+				return []
+			}
+
+
+			var diffs = []
+			var path = paths.t_path
+
+			if (path == '/ruleAggrDetail') {
+				return []
+			}
+
+			for (var k in left_data) {
+				var l_o = left_data[k]
+				
+				if (right_data[k] == undefined) {
+					diffs.push({'path': pathAdd(path, k), 'opt':1})
+					continue
+				}
+				var r_o = right_data[k]
+				
+				if (typeof(l_o) == 'string' || typeof(l_o) == 'number') {
+					if (l_o === r_o) {
+						diffs.push({'path': pathAdd(path, k), 'opt':0})
+					} else {
+						diffs.push({'path': pathAdd(path, k), 'opt':2})
+					}
+				}
+
+				if (typeof(l_o) == 'object') {
+					var cc = {
+						t_path : paths.t_path = pathAdd(path, k),
+						l_path : paths.l_path = pathAdd(path, k),
+						r_path : paths.r_path = pathAdd(path, k),
+						depth  : paths.depth + 1
+					}
+					var _diffs = deepObjectDiff(cc, mp_meta, l_o, r_o)
+					_diffs.forEach(d => {
+						diffs.push(d)
+					})
+				}
+			}
+			return diffs
+		}
+
+		var pathAdd = function(old_path, child_path) {
+			return old_path == '/' ? old_path + child_path : old_path +'/'+child_path
+		}
+
+
+
+		var formatLeafValue = function(type, left_obj, right_obj) {
+			var retValue = []
+
+			var data = [left_obj, right_obj]
+			data.forEach(x => {
+				var context = ""
+				if (type == Object) {
+					context = JSON.stringify(left_obj)
+				} else if (type == String || type == Number) {
+					context = left_obj
+				}
+				retValue.push(context)
+			})
+			
+			return retValue
+		}
+
+		var splitLine = function(text) {
+			var _codes = []
+			text.split('\n').forEach(x => {
+				if (x.length > 0) {
+					_codes.push(x)
+				}
+			})
+			return _codes
+		}
+
+		var findNewCtrlData = function(opt, text, ctrl_data) {
+			var _data = []
+			splitLine(text).forEach(uniqCode => {
+				ctrl_data.forEach(x => {
+					if (x.uniqCode == uniqCode) {
+						x.opt = opt
+						_data.push(x)
+					}
+				})
+			})
+			return _data
+		}
+
+		var sortFun = function(a, b) {
+			var nameA = a.uniqCode.toUpperCase()
+			var nameB = b.uniqCode.toUpperCase()
+			if (nameA < nameB) {
+				return -1
+			}
+			if (nameA > nameB) {
+				return 1
+			}
+
+			return 0
+		}
+
+		var setCtrlData = function(input_data, topology, meta, item) {
+			var ret_data = []
+			if (input_data == null) {
+				return []
+			}
+
+			console.log("meta", meta)
+			console.log("input_data", input_data)
+
+			if (input_data !== undefined) {
+				if (Array.isArray(input_data)) {
+					for(var i in input_data) {
+						var _item = input_data[i]
+						if (meta.showKey !== undefined) {
+							var x_code = meta.showKey.key
+							var x_name = meta.showKey.name
+
+							ret_data.push({
+								uniqCode : meta.uniqCodeFun ? meta.uniqCodeFun(_item) : _item[x_code],
+								code     : _item[x_code],
+								name     : meta.formatLabel ? meta.formatLabel(_item) : _item[x_name],
+								index    : meta.type == 'array' ? i : x_code,
+								depth    : item.depth + 1,
+							})
+						}
+					}
+				} else {
+					var keys = Object.keys(input_data)
+					for (var i = 0; i < keys.length; i++) {
+						var code = keys[i]
+						if (topology.indexOf(code) != -1) {
+							ret_data.push({
+								code  : code,
+								name  : findTopologyName(code),
+								index : code,
+								depth : item.depth + 1,
+							})
+						}
+					}
+				}
+			}
+			// 数据排序
+			if (meta.align) {
+				ret_data.sort(sortFun)
+			}
+			return ret_data
+		}
+
+		var findTopologyName = function(code) {
+			if (mp_key_frame[code]) {
+				return mp_key_frame[code]
+			}
+			return code
+		}
+
+		var findMetaData = function(path, srcMeta) {
+			console.log("path", path)
+			if (path == '/') {
+				return srcMeta
+			}
+
+			var paths = path.split('/')
+			console.log("paths", paths)
+			var meta = srcMeta//.children[0]
+			var _path = ''
+			while (paths.length > 0) {
+				_path = paths.shift()
+				if (_path == '') {
+					continue
+				}
+				meta = meta.children[0]
+				// paths.shift()
+			}
+			return meta
+
+		}
+
+		var findData = function(path, mp_data) {
+			if (path == '/') {
+				return mp_data
+			}
+
+			var paths = path.split('/')
+			paths.shift()
+			paths.shift() // 空路径，扔掉，待优化
+
+			var path = paths.shift()
+			var obj  = mp_data[path]
+
+			while (paths.length > 0) {
+				path = paths.shift()
+				obj  = obj[path]
+			}
+
+			return obj
+		}
+
+		var findCurData = function(from, cursor, mp_index, item, mp_data) {
+			if (cursor.depth == 0) {
+				return mp_data
+			} else {
+				var paths
+				if (from == 'l') {
+					paths = cursor.l_path.split('/')
+				}
+				if (from == 'r') {
+					paths = cursor.r_path.split('/')
+				}
+
+				var path = ''//paths.shift()
+				
+				var obj
+				while (paths.length > 0) {
+					path = paths.shift()
+					if (path == '') {
+						obj = mp_data
+						continue
+					}
+					obj  = obj[path]
+				}
+
+				return obj
+			}
+		}
+
 		var app = new Vue({
 			el: '#app',
 			data: {
@@ -254,37 +586,40 @@
 					this.left_ctrl_data.length = 0
 					this.mp_index.length       = 0
 
+					// 测试数据，需要根据实际业务指定
 					var default_data = {
 						code  : mp_test_data[0].manageProductImplCode,
 						name  : mp_test_data[0].manageProductImplCode,
-						index : 0
+						index : '/',
+						depth : 0,
 					}
 
-					if (e == 'MPI') {
-						for(var i in mp_test_data) {
-							this.left_ctrl_data.push(default_data)
-							this.right_ctrl_data.push(default_data)
-						}
-
-						this.mp_index.push({
-							depth   : 0,
-							code    : '',
-							name    : '',
-							index   : 0,
-							l_value : true,
-							r_value : true,
-							type    : 'object' // object,array,number,string
-						})
-						this.cursor = {
-							depth   : 0,
-							type    : 'MPI',
-							l_value : default_data,
-							r_value : default_data,
-							l_path  : "/",
-							r_path  : "/",
-							t_path  : "/",
-						}
+					for(var i in mp_test_data) {
+						this.left_ctrl_data.push(default_data)
+						this.right_ctrl_data.push(default_data)
 					}
+
+					this.mp_index.push({
+						depth   : 0,
+						code    : '',
+						name    : '',
+						index   : '/',
+						l_value : true,
+						r_value : true,
+						type    : 'object' // object,array,number,string
+					})
+					this.cursor = {
+						depth   : 0,
+						type    : 'MPI',
+						l_value : default_data,
+						r_value : default_data,
+						l_path  : "/",
+						r_path  : "/",
+						t_path  : "/",
+					}
+					var cursor = this.cursor
+
+					// setTimeout(function() {deepDiff(cursor, mpi_topology, sc_mp_data, prod_mp_data)}, 1000)
 				},
 				selectPath: function(node) {
 					// 点击path中最后一个节点，不做变更
@@ -292,7 +627,7 @@
 						return
 					}
 
-					this.cursor.depth = node.depth - 1
+					this.cursor.depth = node.depth
 					this.cursor.code  = node.code
 					this.cursor.name  = node.name
 
@@ -307,15 +642,16 @@
 						return
 					}
 
-					pre_data = this.mp_index[this.cursor.depth]
-					pre_data.selectd = item
-
-					this.mp_index[this.cursor.depth].child = item
-					this.cursor.depth++
-					this.cursor.selected = item
+					if (item.depth == 0) {
+						this.mp_index.length = 0
+						this.cursor.depth    = 0
+						this.cursor.l_path   = '/'
+						this.cursor.r_path   = '/'
+						this.cursor.t_path   = '/'
+					}
 
 					var cur_mp_index = {
-						depth   : this.cursor.depth,
+						depth   : item.depth,
 						code    : item.code,
 						name    : item.name,
 						index   : item.index,
@@ -325,19 +661,27 @@
 					this.mp_index.push(cur_mp_index)
 
 					console.log("item", item)
-					console.log("this.cursor", this.cursor)
-					var paths = this.cursor.l_path
-					paths = paths.split('/').slice(0, item.depth)
-					this.cursor.l_path = paths.join('/')
+					console.log("this.cursorxxx", this.cursor)
 
-					paths = this.cursor.r_path
-					paths = paths.split('/').slice(0, item.depth)
-					this.cursor.r_path = paths.join('/')
+					this.cursor.depth = item.depth
 
-					paths = this.cursor.t_path
-					paths = paths.split('/').slice(0, item.depth)
-					this.cursor.t_path = paths.join('/')
-					
+					if (item.depth >= 1) {
+						var paths = this.cursor.l_path
+						paths = paths.split('/').slice(1, item.depth)
+						paths.push(item.index)
+						this.cursor.l_path = '/'+ paths.join('/')
+
+						paths = this.cursor.r_path
+						paths = paths.split('/').slice(1, item.depth)
+						paths.push(item.index)
+						this.cursor.r_path = '/'+ paths.join('/')
+
+						paths = this.cursor.t_path
+						paths = paths.split('/').slice(1, item.depth)
+						paths.push(item.index)
+						this.cursor.t_path = '/'+ paths.join('/')
+					}
+
 					console.log("this.cursor", this.cursor)
 
 					left_obj  = findCurData('l', this.cursor, this.mp_index, item, sc_mp_data)
@@ -345,32 +689,17 @@
 
 					cur_mp_index.l_value = !!left_obj
 					cur_mp_index.r_value = !!right_obj
+					console.log("left_obj", left_obj)
+					console.log("right_obj", right_obj)
 					
 					this.left_ctrl_data.length  = 0
 					this.right_ctrl_data.length = 0
 
-					var zz = mpi_topology
-					var topology = []
-					var x = 1
+					// this.cursor.depth++
 
-					var t_path = this.cursor.t_path
-
-					
-					if (t_path == '/') {
-						this.cursor.t_path = '/0'
-					} else {
-						var tPaths = t_path.split('/')
-						tPaths.shift() // 待优化，需要调整拓扑结果和查找算法
-						
-						while(tPaths.length > 0) {
-							zz = zz.children[0]
-							tPaths.shift()
-						}
-
-						this.cursor.t_path += '/'+zz.depth
-					}
-					topology = zz.fields
-
+					var zz = findMetaData(this.cursor.t_path, mpi_topology)
+					var topology = zz.fields
+					console.log("zz", zz)
 
 					// 已经是叶子节点
 					if (zz.leaf) {
@@ -386,10 +715,10 @@
 						return
 					}
 
-					var left_ctrl_data  = setCtrlData(left_obj, topology, zz)
-					var right_ctrl_data = setCtrlData(right_obj, topology, zz)
+					var left_ctrl_data  = setCtrlData(left_obj, topology, zz, item)
+					var right_ctrl_data = setCtrlData(right_obj, topology, zz, item)
 
-					if (this.cursor.depth == 4 || this.cursor.depth == 6) {
+					if (zz.depth == 3 || zz.depth == 5) {
 						var text1 = ""
 						var text2 = ""
 						left_ctrl_data.forEach(x => text1 += x.uniqCode + "\n")
@@ -413,144 +742,12 @@
 
 					this.cursor.l_value = left_ctrl_data
 					this.cursor.r_value = right_ctrl_data
+
+					// deepDiff(this.cursor, mpi_topology, sc_mp_data, prod_mp_data)
 				}
 			}
 		})
 
-		var formatLeafValue = function(type, left_obj, right_obj) {
-			var retValue = []
-
-			var data = [left_obj, right_obj]
-			data.forEach(x => {
-				var context = ""
-				if (type == Object) {
-					context = JSON.stringify(left_obj)
-				} else if (type == String || type == Number) {
-					context = left_obj
-				}
-				retValue.push(context)
-			})
-			
-			return retValue
-		}
-
-		var splitLine = function(text) {
-			var _codes = []
-			text.split('\n').forEach(x => {
-				if (x.length > 0) {
-					_codes.push(x)
-				}
-			})
-			return _codes
-		}
-
-		var findNewCtrlData = function(opt, text, ctrl_data) {
-			var _data = []
-			splitLine(text).forEach(uniqCode => {
-				ctrl_data.forEach(x => {
-					if (x.uniqCode == uniqCode) {
-						x.opt = opt
-						_data.push(x)
-					}
-				})
-			})
-			return _data
-		}
-
-		var sortFun = function(a, b) {
-			var nameA = a.uniqCode.toUpperCase()
-			var nameB = b.uniqCode.toUpperCase()
-			if (nameA < nameB) {
-				return -1
-			}
-			if (nameA > nameB) {
-				return 1
-			}
-
-			return 0
-		}
-
-		var setCtrlData = function(input_data, topology, meta) {
-			var ret_data = []
-			if (input_data == null) {
-				return []
-			}
-
-			if (input_data !== undefined) {
-				if (Array.isArray(input_data)) {
-					for(var i in input_data) {
-						var _item = input_data[i]
-						if (meta.showKey !== undefined) {
-							var x_code = meta.showKey.key
-							var x_name = meta.showKey.name
-
-							ret_data.push({
-								uniqCode : meta.uniqCodeFun ? meta.uniqCodeFun(_item) : _item[x_code],
-								code     : _item[x_code],
-								name     : meta.formatLabel ? meta.formatLabel(_item) : _item[x_name],
-								index    : meta.type == 'array' ? i : x_code,
-							})
-						}
-					}
-				} else {
-					var keys = Object.keys(input_data)
-					for (var i = 0; i < keys.length; i++) {
-						var code = keys[i]
-						if (topology.indexOf(code) != -1) {
-							ret_data.push({
-								code  : code,
-								name  : findTopologyName(code),
-								index : code
-							})
-						}
-					}
-				}
-			}
-			// 数据排序
-			if (meta.align) {
-				ret_data.sort(sortFun)
-			}
-			return ret_data
-		}
-
-		var findTopologyName = function(code) {
-			if (mp_key_frame[code]) {
-				return mp_key_frame[code]
-			}
-			return code
-		}
-
-		var findCurData = function(from, cursor, mp_index, item, mp_data) {
-			if (cursor.type == 'MPI') {
-				if (cursor.depth == 1) {
-					return mp_data
-				} else {
-					var paths
-					if (from == 'l') {
-						cursor.l_path += "/"+item.index
-
-						paths = cursor.l_path.split('/')
-					}
-					if (from == 'r') {
-						cursor.r_path += "/"+item.index
-
-						paths = cursor.r_path.split('/')
-					}
-
-					paths.shift()
-					paths.shift() // 空路径，扔掉，待优化
-					
-					var path = paths.shift()
-					var obj  = mp_data[path]
-					while (paths.length > 0) {
-						path = paths.shift()
-						obj  = obj[path]
-					}
-
-					return obj
-				}
-			}
-		}
 	</script>
 </body>
 </html>
