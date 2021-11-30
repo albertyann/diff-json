@@ -232,7 +232,7 @@
 			},
 			methods:{
 				moveLeft: function(item) {
-					console.log("this.cursor", this.cursor)
+					console.log("item", item)
 					var right_obj = findCurData('r', this.cursor, this.mp_index, item, prod_mp_data)
 
 					var cur_data = null
@@ -265,11 +265,13 @@
 						}
 					} while (x != this.cursor.depth)
 
-					var left_ctrl_data = setCtrlData(left_obj, topology, zz)
-					this.left_ctrl_data = left_ctrl_data
-					this.cursor.l_value = left_ctrl_data
+					this.left_ctrl_data.forEach(x => {
+						if (x.uniqCode == item.uniqCode) {
+							x.opt = 0
+						}
+					})
 
-					console.log("cur_data", cur_data)
+					console.log("sc_mp_data", sc_mp_data)
 				},
 				selectedTag: function(e) {
 					this.selected_tag = e
@@ -279,25 +281,25 @@
 					if (e == 'MPI') {
 						for(var i in mp_test_data) {
 							this.left_ctrl_data.push({
-								code : mp_test_data[i].manageProductImplCode,
-								name : mp_test_data[i].manageProductImplCode,
+								code  : mp_test_data[i].manageProductImplCode,
+								name  : mp_test_data[i].manageProductImplCode,
 								index : -1
 							})
 							this.right_ctrl_data.push({
-								code : mp_test_data[i].manageProductImplCode,
-								name : mp_test_data[i].manageProductImplCode,
+								code  : mp_test_data[i].manageProductImplCode,
+								name  : mp_test_data[i].manageProductImplCode,
 								index : -1
 							})
 						}
 
 						this.mp_index.push({
-							depth : 1,
-							code: '',
-							name: '',
-							index : -1,
-							l_value: true,
-							r_value: true,
-							type : 'object' // object,array,number,string
+							depth   : 1,
+							code    : '',
+							name    : '',
+							index   : -1,
+							l_value : true,
+							r_value : true,
+							type    : 'object' // object,array,number,string
 						})
 						this.cursor = {depth:0, type:'MPI', l_value: {
 								code : mp_test_data[i].manageProductImplCode,
@@ -317,8 +319,8 @@
 					}
 
 					this.cursor.depth = node.depth - 1
-					this.cursor.code= node.code
-					this.cursor.name= node.name
+					this.cursor.code  = node.code
+					this.cursor.name  = node.name
 
 					this.mp_index = this.mp_index.slice(0, node.depth)
 					this.left_ctrl_data = this.left_ctrl_data.slice(0, node.depth)
