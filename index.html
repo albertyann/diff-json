@@ -127,49 +127,34 @@
 		var mp_test_data = [{'manageProductImplCode':'MPI20210625120222062564'}]
 
 		var mp_key_frame = {'MPI':"MP", "bizProducts":"产品类型列表", "bizProductFlows":"工作流列表","flowRuleAggr":"工作流规则集"}
-		var origin_data = ['Ability', 'ApplicationInit', 'Product', 'MP', 'MPI']
 		var mpi_topology = {
 			'code':'MPI',
 			'name':'MP实例',
-			'type': Object,
-			'depth':1,
+			'type': 'object',
+			'depth':0,
 			'leaf':false,
 			'fields':['bizProducts'],
 			'children': [{
-			// 	'code':'creatorCode',
-			// 	'name':'创建者',
-			// 	'type': String,
-			// 	'depth':2,
-			// 	'leaf':true,
-			// },
-			// {
-			// 	'code':'affectedInfo',
-			// 	'name':'创建者',
-			// 	'type': Array,
-			// 	'depth':2,
-			// 	'leaf':true,
-			// },
-			// {
 				'code':'bizProducts',
 				'name':'产品类型列表',
-				'type': Array,
-				'depth':2,
+				'type': 'array',
+				'depth':1,
 				'leaf':false,
 				'fields':[],
 				'showKey':{'key':'bizProductCode','name':'bizProductName'},
 				'children' : [{
 					'code':'-',
 					'name':'工作流列表',
-					'type': Object,
-					'depth':3,
+					'type': 'object',
+					'depth':2,
 					'leaf':false,
 					'fields':['bizProductFlows'],
 					// 'showKey':{'key':'bizProductCode','name':'bizProductName'},
 					'children' : [{
 						'code':'-',
 						'name':'工作流规则集',
-						'type': Array,
-						'depth':4,
+						'type': 'array',
+						'depth':3,
 						'leaf':false,
 						'fields':[],
 						'showKey':{'key':'flowCode','name':'flowName'},
@@ -183,15 +168,15 @@
 						'children' : [{
 							'code':'-',
 							'name':'工作流规则集',
-							'type': Object,
-							'depth':5,
+							'type': 'object',
+							'depth':4,
 							'leaf':false,
 							'fields':['flowRuleAggr'],
 							'children' : [{
 								'code':'-',
 								'name':'工作流规则集列表',
-								'type': Array,
-								'depth':6,
+								'type': 'array',
+								'depth':5,
 								'leaf':false,
 								'fields':[],
 								'showKey':{'key':'ruleId','name':'configGroup'},
@@ -200,13 +185,13 @@
 									return item['configGroup']
 								},
 								'children' : [{
-									'code':'-',
-									'name':'工作流规则集列表',
-									'type': Array,
-									'depth':7,
-									'lea你f':true,
-									'fields':[],
-									'children':[]
+									'code'     : '-',
+									'name'     : '工作流规则集列表',
+									'type'     : 'array',
+									'depth'    : 6,
+									'leaf'     : true,
+									'fields'   : [],
+									'children' : []
 								}]
 							}]
 						}]
@@ -217,22 +202,16 @@
 		var app = new Vue({
 			el: '#app',
 			data: {
-				origin_data: origin_data,
-				selected_tag : '',
-				path_data	: [],
-				index_data : [],
-				index_depth: 0,
-				mp_index	 : [],
-				left_ctrl_data:[],
-				right_ctrl_data:[],
-				cursor	 : {depth:0, selected:null}
+				mp_index	    : [],
+				left_ctrl_data  : [],
+				right_ctrl_data : [],
+				cursor	        : {depth:0, selected:null}
 			},
 			created: function() {
 				this.selectedTag('MPI')
 			},
 			methods:{
 				moveLeft: function(item) {
-					console.log("item", item)
 					var right_obj = findCurData('r', this.cursor, this.mp_index, item, prod_mp_data)
 
 					var cur_data = null
@@ -270,46 +249,41 @@
 							x.opt = 0
 						}
 					})
-
-					console.log("sc_mp_data", sc_mp_data)
 				},
 				selectedTag: function(e) {
-					this.selected_tag = e
 					this.left_ctrl_data.length = 0
-					this.mp_index.length = 0
+					this.mp_index.length       = 0
+
+					var default_data = {
+						code  : mp_test_data[0].manageProductImplCode,
+						name  : mp_test_data[0].manageProductImplCode,
+						index : 0
+					}
 
 					if (e == 'MPI') {
 						for(var i in mp_test_data) {
-							this.left_ctrl_data.push({
-								code  : mp_test_data[i].manageProductImplCode,
-								name  : mp_test_data[i].manageProductImplCode,
-								index : -1
-							})
-							this.right_ctrl_data.push({
-								code  : mp_test_data[i].manageProductImplCode,
-								name  : mp_test_data[i].manageProductImplCode,
-								index : -1
-							})
+							this.left_ctrl_data.push(default_data)
+							this.right_ctrl_data.push(default_data)
 						}
 
 						this.mp_index.push({
-							depth   : 1,
+							depth   : 0,
 							code    : '',
 							name    : '',
-							index   : -1,
+							index   : 0,
 							l_value : true,
 							r_value : true,
 							type    : 'object' // object,array,number,string
 						})
-						this.cursor = {depth:0, type:'MPI', l_value: {
-								code : mp_test_data[i].manageProductImplCode,
-								name : mp_test_data[i].manageProductImplCode,
-								index : -1
-							}, r_value:{
-								code : mp_test_data[i].manageProductImplCode,
-								name : mp_test_data[i].manageProductImplCode,
-								index : -1
-							}}
+						this.cursor = {
+							depth   : 0,
+							type    : 'MPI',
+							l_value : default_data,
+							r_value : default_data,
+							l_path  : "/",
+							r_path  : "/",
+							t_path  : "/",
+						}
 					}
 				},
 				selectPath: function(node) {
@@ -341,15 +315,30 @@
 					this.cursor.selected = item
 
 					var cur_mp_index = {
-						depth : this.cursor.depth,
-						code  : item.code,
-						name  : item.name,
-						index : item.index,
-						value : null,
-						l_value: this.cursor.l_value[item.code] ? true : false,
-						r_value: this.cursor.r_value[item.code] ? true : false,
+						depth   : this.cursor.depth,
+						code    : item.code,
+						name    : item.name,
+						index   : item.index,
+						l_value : this.cursor.l_value[item.code] ? true : false,
+						r_value : this.cursor.r_value[item.code] ? true : false,
 					}
 					this.mp_index.push(cur_mp_index)
+
+					console.log("item", item)
+					console.log("this.cursor", this.cursor)
+					var paths = this.cursor.l_path
+					paths = paths.split('/').slice(0, item.depth)
+					this.cursor.l_path = paths.join('/')
+
+					paths = this.cursor.r_path
+					paths = paths.split('/').slice(0, item.depth)
+					this.cursor.r_path = paths.join('/')
+
+					paths = this.cursor.t_path
+					paths = paths.split('/').slice(0, item.depth)
+					this.cursor.t_path = paths.join('/')
+					
+					console.log("this.cursor", this.cursor)
 
 					left_obj  = findCurData('l', this.cursor, this.mp_index, item, sc_mp_data)
 					right_obj = findCurData('r', this.cursor, this.mp_index, item, prod_mp_data)
@@ -364,26 +353,28 @@
 					var topology = []
 					var x = 1
 
-					do {
-						if (x == this.cursor.depth) {
-							topology = zz.fields
-							break
-						}
+					var t_path = this.cursor.t_path
 
-						zz = zz.children[0]
-						x++
+					
+					if (t_path == '/') {
+						this.cursor.t_path = '/0'
+					} else {
+						var tPaths = t_path.split('/')
+						tPaths.shift() // 待优化，需要调整拓扑结果和查找算法
 						
-						if (x == this.cursor.depth) {
-							topology = zz.fields
-							break
+						while(tPaths.length > 0) {
+							zz = zz.children[0]
+							tPaths.shift()
 						}
-					} while (x != this.cursor.depth)
 
-					console.log("zz", zz)
+						this.cursor.t_path += '/'+zz.depth
+					}
+					topology = zz.fields
+
+
 					// 已经是叶子节点
 					if (zz.leaf) {
 						var ret = formatLeafValue(zz.type, left_obj, right_obj)
-						console.log("ret", ret)
 						this.left_ctrl_data.push({
 							name : ret[0],
 							leaf : true
@@ -395,7 +386,7 @@
 						return
 					}
 
-					var left_ctrl_data = setCtrlData(left_obj, topology, zz)
+					var left_ctrl_data  = setCtrlData(left_obj, topology, zz)
 					var right_ctrl_data = setCtrlData(right_obj, topology, zz)
 
 					if (this.cursor.depth == 4 || this.cursor.depth == 6) {
@@ -497,7 +488,7 @@
 								uniqCode : meta.uniqCodeFun ? meta.uniqCodeFun(_item) : _item[x_code],
 								code     : _item[x_code],
 								name     : meta.formatLabel ? meta.formatLabel(_item) : _item[x_name],
-								index    : i,
+								index    : meta.type == 'array' ? i : x_code,
 							})
 						}
 					}
@@ -507,9 +498,9 @@
 						var code = keys[i]
 						if (topology.indexOf(code) != -1) {
 							ret_data.push({
-								code : code,
-								name : findTopologyName(code),
-								index : i
+								code  : code,
+								name  : findTopologyName(code),
+								index : code
 							})
 						}
 					}
@@ -529,45 +520,33 @@
 			return code
 		}
 
-		var findTopologyCursor = function(cursor) {
-			// var tt;
-			// var d = 0;
-			// while(d <= cursor.depth) {
-			// 	if ()
-			// 	tt = mpi_topology.children
-			// }
-			return code
-		}
-
 		var findCurData = function(from, cursor, mp_index, item, mp_data) {
 			if (cursor.type == 'MPI') {
 				if (cursor.depth == 1) {
 					return mp_data
 				} else {
-					var i = 2
-					var cur = mp_index[i]
-					var obj = mp_data[cur.code]
+					var paths
+					if (from == 'l') {
+						cursor.l_path += "/"+item.index
 
-					while(cur.depth != cursor.depth) {
-						i++
-						cur = mp_index[i]
-						
-						if (Array.isArray(obj)) {
-							obj = obj[parseInt(cur.index)]
-						} else {
-							obj = obj[cur.code]
-						}
+						paths = cursor.l_path.split('/')
+					}
+					if (from == 'r') {
+						cursor.r_path += "/"+item.index
 
-						if ('l' == from && !cur.l_value) {
-							break
-						}
-						if ('r' == from && !cur.r_value) {
-							break
-						}
+						paths = cursor.r_path.split('/')
 					}
-					if (cursor.depth == 5 && obj.flowCode !== item.code) {
-						return null
+
+					paths.shift()
+					paths.shift() // 空路径，扔掉，待优化
+					
+					var path = paths.shift()
+					var obj  = mp_data[path]
+					while (paths.length > 0) {
+						path = paths.shift()
+						obj  = obj[path]
 					}
+
 					return obj
 				}
 			}
