@@ -254,20 +254,18 @@
 		}
 
 
-		var deepDiff = function(cursor, mp_meta, sc_mp_data, prod_mp_data) {
+		var deepDiff = function(cursor, mp_meta, left_data, right_data) {
 			var path  = cursor.t_path
-			var l_obj = findData(cursor.l_path, sc_mp_data)
-			var r_obj = findData(cursor.r_path, prod_mp_data)
 
 			var meta  = findMetaData(cursor.t_path, mp_meta)
 
 			var diffs = []
 			if (meta.compare) {
-				var diff = meta.compare(l_obj, r_obj)
+				var diff = meta.compare(left_data, right_data)
 			} else {
-				for (var k in sc_mp_data) {
-					var l_o = sc_mp_data[k]
-					var r_o = prod_mp_data[k]
+				for (var k in left_data) {
+					var l_o = left_data[k]
+					var r_o = right_data[k]
 					if (r_o == undefined) {
 						diffs.push({'path': pathAdd(path, k), 'opt':1})
 					}
@@ -743,7 +741,10 @@
 					this.cursor.l_value = left_ctrl_data
 					this.cursor.r_value = right_ctrl_data
 
-					// deepDiff(this.cursor, mpi_topology, sc_mp_data, prod_mp_data)
+					if (item.depth > 0) {
+						var diff = deepDiff(this.cursor, mpi_topology, left_obj, right_obj)
+						console.log("diff", diff)
+					}
 				}
 			}
 		})
